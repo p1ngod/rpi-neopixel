@@ -13,7 +13,7 @@
 
 typedef void (* Animation)(Adafruit_NeoPixel&, uint32_t, uint32_t, uint8_t, uint8_t, uint32_t);
 
-Adafruit_NeoPixel *strips[STRIPS_COUNT] = {
+static Adafruit_NeoPixel *strips[STRIPS_COUNT] = {
   new Adafruit_NeoPixel(600, 2, NEO_GRBW + NEO_KHZ800),
   new Adafruit_NeoPixel(300, 3, NEO_GRBW + NEO_KHZ800),
   new Adafruit_NeoPixel(300, 4, NEO_GRBW + NEO_KHZ800)
@@ -26,7 +26,11 @@ struct AnimationConfig {
   uint8_t speed;
   uint8_t width;
 };
-AnimationConfig animationConfigs[STRIPS_COUNT];
+static AnimationConfig animationConfigs[STRIPS_COUNT];
+
+const size_t capacity = JSON_ARRAY_SIZE(3) + 3*JSON_OBJECT_SIZE(5) + 90;
+StaticJsonDocument<capacity> jsonDoc;
+DeserializationError jsonError;
 
 uint32_t startTick = 0;
 uint32_t currentTick = 0;
@@ -134,16 +138,19 @@ void setup() {
     strips[strip]->begin();
     strips[strip]->show();
     strips[strip]->setBrightness(60);
+
+    animationConfigs[strip].animation = animation_color;
+    animationConfigs[strip].color1 = Adafruit_NeoPixel::Color(0, 0, 0, 255);
   }
 
   Serial.begin(SERIAL_SPEED);
+  Serial.write("Initialized\r\n");
 }
 
 void loop() {
   if (Serial.available()) {
-    const size_t capacity = JSON_ARRAY_SIZE(3) + 3*JSON_OBJECT_SIZE(5) + 90;
-    DynamicJsonDocument jsonDoc(capacity);    
-    DeserializationError jsonError = deserializeJson(jsonDoc, Serial);
+    jsonDoc.clear();
+    jsonError = deserializeJson(jsonDoc, Serial);
 
     if (jsonError) {
       Serial.print(F("Invalid JSON: "));
@@ -171,7 +178,6 @@ void loop() {
       updateStrip(*strips[strip], animationConfigs[strip], currentTick);
     }
   }
-  //Adafruit_NeoPixel::Color(255, 0, 0, 0)
   //animation_rainbow(*strips[2], AVG_SPEED, AVG_WIDTH, currentTick);
   //animation_twinkle(*strips[2], Adafruit_NeoPixel::Color(255, 16, 0), Adafruit_NeoPixel::Color(255, 255, 128), AVG_SPEED, AVG_WIDTH, currentTick);
   //animation_twinkle(*strips[2], Adafruit_NeoPixel::Color(255, 128, 0), Adafruit_NeoPixel::Color(255, 255, 128), AVG_SPEED, AVG_WIDTH, currentTick);
